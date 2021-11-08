@@ -17,6 +17,15 @@ dict_collection = {}
 
 
 def get_full_logs_path(logs_path):
+    """Dato un percorso, restituire i path dei log secure 
+    al suo interno
+
+    Args:
+        logs_path (str): cartella dei log
+
+    Returns:
+        list[str]: percorso dei file secure completo
+    """
     result = []
     for file in os.listdir(logs_path):
         # Prende solo i "secure" file
@@ -26,11 +35,25 @@ def get_full_logs_path(logs_path):
 
 
 def get_lines(file_path):
+    """Dato un percorso file, restituisce una lista delle linee
+
+    Args:
+        file_path (str): percorso file
+
+    Returns:
+        list[str]: lista di righe del file
+    """
     with open(file_path, 'r') as f:
         return f.readlines()
 
 
 def pid_collector(dict_log_line):
+    """Aggrega i dizionari che rappresentano le linee del file
+    sotto la chiave PID del dizionario dict_collection
+
+    Args:
+        dict_log_line (dict): linea parsata del secure log file
+    """
     pid = dict_log_line['pid']
     message = dict_log_line['message']
 
@@ -38,8 +61,8 @@ def pid_collector(dict_log_line):
     if pid not in dict_collection:
         dict_collection[pid] = []
 
-    # Aggiungo la linea usando come metodo di raggruppamento
-    # la chiave pid del dizionario
+    # Aggiungo la linea usando come metodo di raggruppamento la chiave pid del 
+    # dizionario
     dict_collection[pid].append(dict_log_line)
 
     # Quando la sessione e' chiusa scrive la lista delle operazioni
@@ -48,6 +71,15 @@ def pid_collector(dict_log_line):
 
 
 def action_match(message):
+    """In base a dei match contenuti nel message del log,
+    ritorna un dizionario contenente l'action, file1 e file2
+
+    Args:
+        message (str): messaggio della linea log
+
+    Returns:
+        dict: action, file1 e file2
+    """
     if 'written 0' in message:
         return regex.download(message)
 
@@ -68,6 +100,13 @@ def action_match(message):
 
 
 def pid_user_ip_extractor(dicit_pids):
+    """Dato un dizionario che come chiavi ha i PID dei log,
+    aggiunge la chiave utente e ip se vengono trovate nella lista dei messaggi
+    che hanno lo stesso PID
+
+    Args:
+        dicit_pids (dict): gruppi di linee che come chiave hanno lo stesso PID
+    """
     for pid in dicit_pids:
         user = ''
         ip = ''
@@ -86,6 +125,13 @@ def pid_user_ip_extractor(dicit_pids):
 
 
 def pid_processor(dict_pids):
+    """Dato un dizionario che come chiavi ha i PID dei log,
+    dopo una serie di elaborazioni, scrive i valori su un CSV e
+    svuota lo stesso dizionario per liberare memoria
+
+    Args:
+        dict_pids (dict): messaggi suddivisi in base al PID
+    """
     # Aggiunge ad ogni collezione (di pid) user e ip
     pid_user_ip_extractor(dict_pids)
     # Eseguo una copia dell'oggetto dict_pids
@@ -108,7 +154,9 @@ def pid_processor(dict_pids):
             file2 = action_matched["file2"]
 
             write_csv(
-                text='{},{},{},{},{},{},{}\n'.format(date, user, ip, pid, action, file, file2),
+                text='{},{},{},{},{},{},{}\n'.format(
+                    date, user, ip, pid, action, file, file2
+                ),
                 overwrite=False
             )
         # Svuoto il contenuto della chiave una volta scritto il CSV
@@ -121,12 +169,21 @@ def pid_processor(dict_pids):
 
 
 def write_csv(text, overwrite):
+    """Data una stringa, scrive una linea su un file out.csv
+
+    Args:
+        text (str): contenuto da scrivere
+        overwrite (bool): sovrascrivi
+    """
     mode = 'w' if overwrite else 'a+'
     with open('out.csv', mode) as file:
         file.write(text)
 
 
 if __name__ == '__main__':
+    """Inizio del programma. Dato un percorso, esegue il parse linea per linea
+    dei log secure suddividendoli in dizionari con le chiavi data, pid e message
+    """
     # Crea il file CSV
     write_csv(
         text='Month,Day,Time,User,IP,PID,Action,File,File New (rename only)\n',
